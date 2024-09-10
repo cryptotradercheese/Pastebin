@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package pasteidgenerator.proto;
+
+option java_multiple_files = true;
+option java_package = "pasteidgenerator.proto";
+option java_outer_classname = "PasteIdProto";
+
+service PasteIdGenerator {
+    rpc Generate(PasteIdRequest) returns (PasteIdResponse) {
+    }
+}
+
+message PasteIdRequest {
+}
+
+message PasteIdResponse {
+    string paste_id = 1;
+}

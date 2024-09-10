@@ -1,0 +1,182 @@
+version: '3.8'
+
+networks:
+  paste-id-generator-network:
+  pastebin-api-network:
+  analytics-network:
+  kafka-network:
+
+services:
+  paste-id-generator:
+    container_name: paste-id-generator-container
+    image: paste-id-generator:latest
+    build:
+      context: ./Paste-Id-Generator
+      dockerfile: Dockerfile
+    depends_on:
+      - paste-id-postgresql
+    restart: unless-stopped
+    networks:
+      - paste-id-generator-network
+      - pastebin-api-network
+#    ports:
+#      - 9080:9080
+    environment:
+      POSTGRESQL_URL: jdbc:postgresql://paste-id-postgresql:5432/postgres
+      POSTGRESQL_USERNAME: postgres
+      POSTGRESQL_PASSWORD: postgres
+
+  paste-id-postgresql:
+    container_name: paste-id-postgresql-container
+    image: postgres:12
+    networks:
+      - paste-id-generator-network
+#    ports:
+#      - 5432:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+
+
+
+  analytics:
+    container_name: analytics-container
+    #    network_mode: host
+    image: analytics:latest
+    build:
+      context: ./Pastebin-Analytics
+      dockerfile: Dockerfile
+    depends_on:
+      - prometheus
+    ports:
+      - 8070:8070
+    networks:
+      - analytics-network
+      - kafka-network
+
+  prometheus:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    container_name: prometheus-container
+    image: prom/prometheus:latest
+    networks:
+      - analytics-network
+    ports:
+      - 9090:9090
+    volumes:
+      - ./Pastebin-Analytics/prometheus/prometheus.yaml:/etc/prometheus/prometheus.yaml
+
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yaml"
+
+  prometheus-pushgateway:
+    container_name: prometheus-pushgateway-container
+    image: prom/pushgateway:latest
+    networks:
+      - analytics-network
+#    ports:
+#      - 9091:9091
+
+  grafana:
+    container_name: grafana-container
+    #    network_mode: host
+    image: grafana/grafana:latest
+    depends_on:
+      - prometheus
+    networks:
+      - analytics-network
+    ports:
+      - 3000:3000
+    volumes:
+      - ./Pastebin-Analytics/grafana:/etc/grafana/provisioning
+
+
+
+  pastebin-api:
+    container_name: pastebin-api-container
+    image: pastebin-api:latest
+    build:
+      context: ./Pastebin-Api
+      dockerfile: Dockerfile
+    depends_on:
+      - pastebin-api-postgresql
+      - minio
+      - redis-metadata
+      - redis-content
+      - kafka
+    networks:
+      - pastebin-api-network
+      - kafka-network
+    ports:
+      - 8080:8080
+    environment:
+      POSTGRESQL_URL: jdbc:postgresql://pastebin-api-postgresql:5432/postgres
+      POSTGRESQL_USERNAME: postgres
+      POSTGRESQL_PASSWORD: postgres
+
+  pastebin-api-postgresql:
+    container_name: pastebin-api-postgresql-container
+    image: postgres:12
+    networks:
+      - pastebin-api-network
+#    ports:
+#      - 5432:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+
+  minio:
+    container_name: minio-container
+    image: minio/minio:latest
+    networks:
+      - pastebin-api-network
+#    ports:
+#      - 9000:9000
+#      - 9001:9001
+    command: [ 'server', '/data', '--console-address', ':9001' ]
+
+  redis-metadata:
+    container_name: redis-metadata-container
+    image: redis:7.4
+    networks:
+      - pastebin-api-network
+  #    ports:
+  #      - 6379:6379
+
+  redis-content:
+    container_name: redis-content-container
+    image: redis:7.4
+    networks:
+      - pastebin-api-network
+  #    ports:
+  #      - 6379:6379
+
+  kafka:
+    container_name: kafka-container
+    image: confluentinc/cp-kafka:7.4.4
+    depends_on:
+      - zookeeper
+    networks:
+      - kafka-network
+    ports:
+      - 9092:9092
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  zookeeper:
+    container_name: zookeeper_container
+    image: confluentinc/cp-zookeeper:7.4.4
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - kafka-network
+#    ports:
+#      - 2181:2181

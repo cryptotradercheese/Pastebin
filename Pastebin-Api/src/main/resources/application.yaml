@@ -1,0 +1,59 @@
+grpc:
+  client:
+    pasteidgenerator:
+      address: paste-id-generator:9080
+#      address: localhost:9080
+      negotiation-type: plaintext
+server:
+  host: localhost
+  port: 8080
+
+management:
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  endpoint:
+    health:
+      show:
+        details: always
+  endpoints:
+    web:
+      exposure:
+        include:
+          - '*'
+
+spring:
+  application:
+    name: Pastebin-Api
+  kafka:
+    bootstrap-servers: kafka:9092
+#    bootstrap-servers: localhost:9092
+  data:
+    redis:
+      metadata:
+        host: redis-metadata-container
+        port: 6379
+      content:
+        host: redis-content-container
+        port: 6379
+    minio:
+      host: minio
+#      host: localhost
+      port: 9000
+      login: minioadmin
+      password: minioadmin
+  datasource:
+#    url: jdbc:postgresql://localhost:5432/postgres
+#    username: postgres
+#    password: postgres
+    url: ${POSTGRESQL_URL}
+    username: ${POSTGRESQL_USERNAME}
+    password: ${POSTGRESQL_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  sql:
+    init:
+      mode: always
