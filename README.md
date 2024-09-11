@@ -32,6 +32,8 @@
 ```
 docker compose up
 ```
-По ссылке http://localhost:8080/swagger-ui/index.html можно опробовать 
+* По ссылке http://localhost:8080/swagger-ui/index.html можно опробовать 
 приложение через Swagger UI.
 
+* Доступ к аналитике: http://localhost:3000 -> логин и пароль admin -> 
+справа вкладка Dashboards -> выбрать dashboard из списка
