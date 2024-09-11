@@ -36,4 +36,4 @@ docker compose up
 приложение через Swagger UI.
 
 * Доступ к аналитике: http://localhost:3000 -> логин и пароль admin -> 
-справа вкладка Dashboards -> выбрать dashboard из списка
+слева вкладка Dashboards -> выбрать dashboard из списка
