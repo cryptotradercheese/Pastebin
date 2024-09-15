@@ -14,6 +14,7 @@ public class PasteIdGeneratorService {
     private static final int INCREMENT = 100;
     private final Semaphore semaphore;
     private final AtomicLong generator;
+    private volatile long maxAllowedNumber;
     private final Base64.Encoder encoder;
     private final NumberGeneratorRepository numberGeneratorRepository;
 
@@ -22,6 +23,7 @@ public class PasteIdGeneratorService {
         this.numberGeneratorRepository = numberGeneratorRepository;
         semaphore = new Semaphore(INCREMENT);
         generator = new AtomicLong(numberGeneratorRepository.nextVal());
+        maxAllowedNumber = generator.get() + INCREMENT - 1;
         encoder = Base64.getUrlEncoder().withoutPadding();
     }
 
@@ -31,17 +33,17 @@ public class PasteIdGeneratorService {
     }
 
     private long generateNumber() {
-        try {
-            semaphore.acquire();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        long number = generator.getAndIncrement();
+        if (number > maxAllowedNumber) {
+            synchronized (this) {
+                if (number > maxAllowedNumber) {
+                    long nextClosestIncrement = (number + INCREMENT) / INCREMENT * INCREMENT + 1;
+                    numberGeneratorRepository.setVal(nextClosestIncrement);
+                    maxAllowedNumber = nextClosestIncrement + INCREMENT - 1;
+                }
+            }
         }
 
-        long number = generator.getAndIncrement();
-        if (semaphore.availablePermits() == 0) {
-            generator.set(numberGeneratorRepository.nextVal());
-            semaphore.release(INCREMENT);
-        }
         return number;
     }
 

@@ -16,4 +16,11 @@ public class NumberGeneratorRepository {
                 .createQuery("SELECT NEXTVAL('number_generator')", long.class)
                 .getSingleResult();
     }
+
+    @Transactional
+    public long setVal(long value) {
+        return entityManager
+                .createQuery("SELECT SETVAL('number_generator', " + value + ")", long.class)
+                .getSingleResult();
+    }
 }
