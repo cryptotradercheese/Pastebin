@@ -6,24 +6,18 @@ import org.springframework.stereotype.Service;
 
 import java.nio.ByteBuffer;
 import java.util.Base64;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class PasteIdGeneratorService {
     private static final int INCREMENT = 100;
-    private final Semaphore semaphore;
-    private final AtomicLong generator;
-    private volatile long maxAllowedNumber;
+    private long generator;
     private final Base64.Encoder encoder;
     private final NumberGeneratorRepository numberGeneratorRepository;
 
     @Autowired
     public PasteIdGeneratorService(NumberGeneratorRepository numberGeneratorRepository) {
         this.numberGeneratorRepository = numberGeneratorRepository;
-        semaphore = new Semaphore(INCREMENT);
-        generator = new AtomicLong(numberGeneratorRepository.nextVal());
-        maxAllowedNumber = generator.get() + INCREMENT - 1;
+        generator = 1;
         encoder = Base64.getUrlEncoder().withoutPadding();
     }
 
@@ -32,19 +26,11 @@ public class PasteIdGeneratorService {
         return encode(number);
     }
 
-    private long generateNumber() {
-        long number = generator.getAndIncrement();
-        if (number > maxAllowedNumber) {
-            synchronized (this) {
-                if (number > maxAllowedNumber) {
-                    long nextClosestIncrement = (number + INCREMENT) / INCREMENT * INCREMENT + 1;
-                    numberGeneratorRepository.setVal(nextClosestIncrement);
-                    maxAllowedNumber = nextClosestIncrement + INCREMENT - 1;
-                }
-            }
+    private synchronized long generateNumber() {
+        if (generator % INCREMENT == 1) {
+            generator = numberGeneratorRepository.nextVal();
         }
-
-        return number;
+        return generator++;
     }
 
     private String encode(long number) {
